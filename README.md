@@ -1,4 +1,4 @@
-# ⚡ EV ChargePro
+# EV ChargePro
 
 A web-based Electric Vehicle Charging Station Management System built with Flask and MySQL. Users can find nearby charging stations, book slots, manage their EVs, and pay for sessions — all from a sleek dark-themed dashboard.
 
