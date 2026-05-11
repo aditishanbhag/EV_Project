@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — EV ChargePro{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header flex justify-between" style="align-items:flex-start">
+    <div>
+      <h1>MISSION CONTROL</h1>
+      <p>Welcome back, <span style="color:var(--plasma);font-weight:600">{{ session.user_name }}</span></p>
+    </div>
+    <div>
+      <div class="badge badge-active" style="font-size:.72rem">● Live System</div>
+    </div>
+  </div>
+
+  <!-- Stats from DB -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:2.5rem">
+    <div class="stat-card" style="animation:fadein .5s .1s both">
+      <div class="stat-icon" style="background:rgba(0,212,255,.12)">🔌</div>
+      <div><div class="stat-val" style="color:var(--plasma)">{{ stations|length }}</div><div class="stat-lbl">Stations</div></div>
+    </div>
+    <div class="stat-card" style="animation:fadein .5s .2s both">
+      <div class="stat-icon" style="background:rgba(57,255,110,.12)">🚗</div>
+      <div><div class="stat-val" style="color:var(--volt)">{{ vehicles|length }}</div><div class="stat-lbl">My Vehicles</div></div>
+    </div>
+    <div class="stat-card" style="animation:fadein .5s .3s both">
+      <div class="stat-icon" style="background:rgba(255,215,0,.12)">⚡</div>
+      <div><div class="stat-val" style="color:#ffd700">{{ total_sessions }}</div><div class="stat-lbl">Sessions</div></div>
+    </div>
+    <div class="stat-card" style="animation:fadein .5s .4s both">
+      <div class="stat-icon" style="background:rgba(255,107,26,.12)">💰</div>
+      <div><div class="stat-val" style="color:var(--ember)">₹{{ total_cost|int }}</div><div class="stat-lbl">Total Spent</div></div>
+    </div>
+    <div class="stat-card" style="animation:fadein .5s .5s both">
+      <div class="stat-icon" style="background:rgba(57,255,110,.12)">🔋</div>
+      <div><div class="stat-val" style="color:var(--volt)">{{ total_energy|round(1) }}</div><div class="stat-lbl">kWh Used</div></div>
+    </div>
+  </div>
+
+  <!-- My Vehicles quick view -->
+  {% if vehicles %}
+  <div class="section-title">MY VEHICLES</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;margin-bottom:2.5rem">
+    {% for v in vehicles %}
+    <div class="card" style="animation:fadein .5s {{ loop.index * 0.1 }}s both;padding:1.25rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
+        <div>
+          <div style="font-family:'Orbitron',monospace;font-size:.85rem;font-weight:600">{{ v.model_name }}</div>
+          <div style="font-size:.72rem;color:var(--text-ghost);margin-top:.2rem">{{ v.battery_capacity }} kWh battery</div>
+        </div>
+        <span style="font-size:1.5rem">🚗</span>
+      </div>
+      <!-- Battery level -->
+      <div style="margin:.5rem 0">
+        <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--text-ghost);margin-bottom:.3rem">
+          <span>CHARGE LEVEL</span>
+          <span style="color:{% if v.current_charge >= 70 %}var(--volt){% elif v.current_charge >= 40 %}var(--ember){% else %}var(--danger){% endif %};font-weight:700">{{ v.current_charge }}%</span>
+        </div>
+        <div class="cap-bar">
+          <div class="cap-fill {% if v.current_charge >= 70 %}full{% elif v.current_charge >= 40 %}mid{% else %}low{% endif %}" style="width:{{ v.current_charge }}%"></div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    <div class="card" style="animation:fadein .5s {{ (vehicles|length + 1) * 0.1 }}s both;padding:1.25rem;border-style:dashed;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="window.location='{{ url_for('my_vehicles') }}'">
+      <div style="text-align:center;color:var(--text-ghost)">
+        <div style="font-size:1.5rem;margin-bottom:.4rem">＋</div>
+        <div style="font-size:.75rem;letter-spacing:1px;text-transform:uppercase">Manage Vehicles</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Charging Stations -->
+  <div class="section-title">CHARGING STATIONS</div>
+  <div class="card-grid" style="margin-bottom:2.5rem">
+    {% for s in stations %}
+    {% set pct = (s.available_slots / s.total_slots * 100)|int %}
+    <div class="station-card" style="animation:fadein .5s {{ loop.index * 0.08 }}s both">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.65rem">
+        <h3>{{ s.station_name }}</h3>
+        {% if s.status == 'Active' %}
+          <span class="badge badge-active">Active</span>
+        {% else %}
+          <span class="badge badge-maint">⚠ Maint.</span>
+        {% endif %}
+      </div>
+      <div class="station-meta">📍 {{ s.location }}</div>
+      <div class="slot-display">
+        <div class="slot-box">
+          <div class="slot-num" style="color:{% if pct==0 %}var(--danger){% elif pct<50 %}var(--ember){% else %}var(--volt){% endif %}">{{ s.available_slots }}</div>
+          <div class="slot-sub">Available</div>
+        </div>
+        <div class="slot-box">
+          <div class="slot-num" style="color:var(--text-dim)">{{ s.total_slots - s.available_slots }}</div>
+          <div class="slot-sub">In Use</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--text-ghost);margin-bottom:.3rem">
+        <span>CAPACITY</span>
+        <span style="color:{% if pct==0 %}var(--danger){% elif pct<50 %}var(--ember){% else %}var(--volt){% endif %}">{{ pct }}% free</span>
+      </div>
+      <div class="cap-bar">
+        <div class="cap-fill {% if pct==0 %}low{% elif pct<50 %}mid{% else %}full{% endif %}" style="width:{{ pct }}%"></div>
+      </div>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin:.6rem 0 .9rem">
+        <span class="badge badge-info">{{ s.charger_type }}</span>
+        <span class="badge badge-info">{{ s.power_kw }} kW</span>
+      </div>
+      {% if s.status == 'Active' and s.available_slots > 0 and vehicles %}
+        <a href="{{ url_for('book_slot', station_id=s.station_id) }}" class="btn btn-plasma btn-sm" style="width:100%;justify-content:center">⚡ Book Slot</a>
+      {% elif not vehicles %}
+        <a href="{{ url_for('my_vehicles') }}" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center">Add Vehicle First</a>
+      {% else %}
+        <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center" disabled>
+          {% if s.status != 'Active' %}Under Maintenance{% else %}No Slots Available{% endif %}
+        </button>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Recent Sessions from charging_sessions table -->
+  {% if recent %}
+  <div class="section-title">RECENT SESSIONS</div>
+  <div class="card">
+    <table class="data-table">
+      <thead><tr><th>Vehicle</th><th>Station</th><th>Start Time</th><th>Energy (kWh)</th><th>Cost (₹)</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for r in recent %}
+        <tr style="animation:fadein .4s {{ loop.index * 0.07 }}s both">
+          <td><div style="font-weight:600">{{ r.model_name }}</div><div style="font-size:.72rem;color:var(--text-ghost)">{{ r.location }}</div></td>
+          <td style="font-size:.83rem">{{ r.station_name }}</td>
+          <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-dim)">{{ r.start_time[:16] }}</td>
+          <td style="color:var(--volt);font-family:'Orbitron',monospace;font-size:.85rem">{{ r.energy_used }}</td>
+          <td style="color:#ffd700;font-family:'Orbitron',monospace;font-size:.85rem">₹{{ r.cost }}</td>
+          <td>
+            {% if r.status=='Confirmed' %}<span class="badge badge-confirm">Confirmed</span>
+            {% elif r.status=='Completed' or r.status==None %}<span class="badge badge-active">Completed</span>
+            {% elif r.status=='Cancelled' %}<span class="badge badge-cancel">Cancelled</span>
+            {% else %}<span class="badge badge-info">{{ r.status }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

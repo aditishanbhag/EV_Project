@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel — EV ChargePro{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header flex justify-between" style="align-items:flex-start">
+    <div><h1>ADMIN CONTROL</h1><p>Full database management — all 5 tables</p></div>
+    <div style="display:flex;align-items:center;gap:.6rem;background:rgba(255,215,0,.07);border:1px solid rgba(255,215,0,.2);padding:.5rem 1rem;border-radius:20px">
+      <span style="font-size:.75rem;color:#ffd700;letter-spacing:1px;font-weight:700">🛡 ADMIN ACCESS</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:1rem;margin-bottom:2.5rem">
+    <div class="stat-card" style="animation:fadein .4s .1s both"><div class="stat-icon" style="background:rgba(0,212,255,.12)">👥</div><div><div class="stat-val" style="color:var(--plasma)">{{ total_users }}</div><div class="stat-lbl">Users</div></div></div>
+    <div class="stat-card" style="animation:fadein .4s .2s both"><div class="stat-icon" style="background:rgba(57,255,110,.12)">🚗</div><div><div class="stat-val" style="color:var(--volt)">{{ total_vehicles }}</div><div class="stat-lbl">Vehicles</div></div></div>
+    <div class="stat-card" style="animation:fadein .4s .3s both"><div class="stat-icon" style="background:rgba(0,212,255,.12)">🔌</div><div><div class="stat-val" style="color:var(--plasma)">{{ total_stations }}</div><div class="stat-lbl">Stations</div></div></div>
+    <div class="stat-card" style="animation:fadein .4s .4s both"><div class="stat-icon" style="background:rgba(255,107,26,.12)">⚡</div><div><div class="stat-val" style="color:var(--ember)">{{ total_sessions }}</div><div class="stat-lbl">Sessions</div></div></div>
+    <div class="stat-card" style="animation:fadein .4s .5s both"><div class="stat-icon" style="background:rgba(255,215,0,.12)">💰</div><div><div class="stat-val" style="color:#ffd700;font-size:1.5rem">₹{{ total_revenue|int }}</div><div class="stat-lbl">Revenue</div></div></div>
+    <div class="stat-card" style="animation:fadein .4s .6s both"><div class="stat-icon" style="background:rgba(57,255,110,.12)">🔋</div><div><div class="stat-val" style="color:var(--volt)">{{ total_energy }}</div><div class="stat-lbl">kWh Sold</div></div></div>
+  </div>
+
+  <!-- Tabs: all 5 tables -->
+  <div class="tabs">
+    <div class="tab active" onclick="show('stations',this)">Stations</div>
+    <div class="tab" onclick="show('sessions',this)">Sessions</div>
+    <div class="tab" onclick="show('vehicles',this)">Vehicles</div>
+    <div class="tab" onclick="show('users',this)">Users</div>
+    <div class="tab" onclick="show('payments',this)">Payments</div>
+    <div class="tab" onclick="show('add',this)">+ Add Station</div>
+  </div>
+
+  <!-- ── STATIONS ── -->
+  <div id="tab-stations" style="animation:fadein .4s both">
+    <div class="card" style="overflow-x:auto">
+      <table class="data-table" style="min-width:680px">
+        <thead><tr><th>ID</th><th>Station Name</th><th>Location</th><th>Charger</th><th>Slots (Avail/Total)</th><th>Power</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for s in stations %}
+          <tr>
+            <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-ghost)">#{{ s.station_id }}</td>
+            <td style="font-weight:600;font-family:'Orbitron',monospace;font-size:.78rem">{{ s.station_name }}</td>
+            <td style="color:var(--text-dim);font-size:.82rem">{{ s.location }}</td>
+            <td><span class="badge badge-confirm">{{ s.charger_type }}</span></td>
+            <td>
+              <span style="font-family:'Orbitron',monospace;font-size:.85rem;font-weight:700;color:{% if s.available_slots==0 %}var(--danger){% elif s.available_slots < s.total_slots//2 %}var(--ember){% else %}var(--volt){% endif %}">
+                {{ s.available_slots }}/{{ s.total_slots }}
+              </span>
+            </td>
+            <td style="font-size:.82rem;color:var(--text-dim)">{{ s.power_kw }} kW</td>
+            <td>{% if s.status=='Active' %}<span class="badge badge-active">Active</span>{% else %}<span class="badge badge-maint">Maintenance</span>{% endif %}</td>
+            <td><a href="{{ url_for('toggle_station', sid=s.station_id) }}" class="btn btn-ghost btn-sm">{% if s.status=='Active' %}Disable{% else %}Enable{% endif %}</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SESSIONS ── -->
+  <div id="tab-sessions" style="display:none;animation:fadein .4s both">
+    <div class="card" style="overflow-x:auto">
+      <table class="data-table" style="min-width:800px">
+        <thead><tr><th>Session ID</th><th>User</th><th>Vehicle</th><th>Station</th><th>Start</th><th>End</th><th>Energy (kWh)</th><th>Cost (₹)</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for s in sessions %}
+          <tr>
+            <td style="font-family:'Orbitron',monospace;font-size:.7rem;color:var(--text-ghost)">#{{ s.session_id }}</td>
+            <td style="font-weight:600;font-size:.83rem">{{ s.user_name }}</td>
+            <td style="font-size:.8rem;color:var(--text-dim)">{{ s.model_name }}</td>
+            <td style="font-size:.8rem">{{ s.station_name }}</td>
+            <td style="font-family:'Orbitron',monospace;font-size:.7rem;color:var(--text-dim);white-space:nowrap">{{ s.start_time[:16] if s.start_time else '—' }}</td>
+            <td style="font-family:'Orbitron',monospace;font-size:.7rem;color:var(--text-dim);white-space:nowrap">{{ s.end_time[:16] if s.end_time else '—' }}</td>
+            <td style="color:var(--volt);font-family:'Orbitron',monospace;font-size:.82rem;font-weight:700">{{ s.energy_used }}</td>
+            <td style="color:#ffd700;font-family:'Orbitron',monospace;font-size:.82rem;font-weight:700">₹{{ s.cost }}</td>
+            <td>
+              {% if s.status=='Confirmed' %}<span class="badge badge-confirm">Confirmed</span>
+              {% elif s.status=='Completed' or s.status==None %}<span class="badge badge-active">Completed</span>
+              {% elif s.status=='Cancelled' %}<span class="badge badge-cancel">Cancelled</span>
+              {% else %}<span class="badge badge-info">{{ s.status }}</span>{% endif %}
+            </td>
+            <td><a href="{{ url_for('admin_delete_session', sid=s.session_id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete session #{{ s.session_id }}?')">Delete</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── VEHICLES ── -->
+  <div id="tab-vehicles" style="display:none;animation:fadein .4s both">
+    <div class="card" style="overflow-x:auto">
+      <table class="data-table" style="min-width:620px">
+        <thead><tr><th>Vehicle ID</th><th>Owner</th><th>Model</th><th>Battery (kWh)</th><th>Current Charge (%)</th></tr></thead>
+        <tbody>
+          {% for v in vehicles %}
+          <tr>
+            <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-ghost)">#{{ v.vehicle_id }}</td>
+            <td>
+              <div style="font-weight:600">{{ v.owner_name }}</div>
+              <div style="font-size:.72rem;color:var(--text-ghost)">{{ v.email }}</div>
+            </td>
+            <td style="font-family:'Orbitron',monospace;font-size:.8rem;color:var(--plasma)">{{ v.model_name }}</td>
+            <td style="font-size:.85rem;color:var(--text-dim)">{{ v.battery_capacity }} kWh</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:.75rem">
+                <div style="flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden;min-width:80px">
+                  <div style="height:100%;width:{{ v.current_charge }}%;background:{% if v.current_charge>=70 %}linear-gradient(90deg,#00cc44,#39ff6e){% elif v.current_charge>=40 %}linear-gradient(90deg,#cc7700,#ffaa00){% else %}linear-gradient(90deg,#cc2200,#ff4422){% endif %};border-radius:5px"></div>
+                </div>
+                <span style="font-family:'Orbitron',monospace;font-size:.75rem;color:{% if v.current_charge>=70 %}var(--volt){% elif v.current_charge>=40 %}var(--ember){% else %}var(--danger){% endif %};white-space:nowrap">{{ v.current_charge }}%</span>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── USERS ── -->
+  <div id="tab-users" style="display:none;animation:fadein .4s both">
+    <div class="card" style="overflow-x:auto">
+      <table class="data-table" style="min-width:540px">
+        <thead><tr><th>User ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Joined</th></tr></thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-ghost)">#{{ u.user_id }}</td>
+            <td style="font-weight:600">{{ u.name }}</td>
+            <td style="font-size:.82rem;color:var(--text-dim)">{{ u.email }}</td>
+            <td style="font-family:'Orbitron',monospace;font-size:.75rem;color:var(--text-dim)">{{ u.phone or '—' }}</td>
+            <td>{% if u.role=='admin' %}<span class="badge badge-gold">Admin</span>{% else %}<span class="badge badge-info">User</span>{% endif %}</td>
+            <td style="font-size:.75rem;color:var(--text-ghost)">User #{{ u.user_id }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PAYMENTS ── -->
+  <div id="tab-payments" style="display:none;animation:fadein .4s both">
+    {% if payments %}
+    <div class="card" style="overflow-x:auto">
+      <table class="data-table" style="min-width:620px">
+        <thead><tr><th>Payment ID</th><th>Session ID</th><th>User</th><th>Station</th><th>Method</th><th>Amount (₹)</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for p in payments %}
+          <tr>
+            <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-ghost)">#{{ p.payment_id }}</td>
+            <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-dim)">#{{ p.session_id }}</td>
+            <td style="font-weight:600;font-size:.83rem">{{ p.user_name }}</td>
+            <td style="font-size:.82rem;color:var(--text-dim)">{{ p.station_name }}</td>
+            <td><span class="badge badge-confirm">{{ p.payment_method }}</span></td>
+            <td style="color:#ffd700;font-family:'Orbitron',monospace;font-size:.9rem;font-weight:700">₹{{ p.amount }}</td>
+            <td>{% if p.status=='Paid' %}<span class="badge badge-paid">✓ Paid</span>{% else %}<span class="badge badge-cancel">{{ p.status }}</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="card" style="text-align:center;padding:2.5rem;color:var(--text-dim)">
+      <div style="font-size:2rem;margin-bottom:.75rem">💳</div>
+      <div>No payments recorded yet. Payments appear here when users pay for sessions.</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── ADD STATION ── -->
+  <div id="tab-add" style="display:none;animation:fadein .4s both">
+    <div class="card" style="max-width:540px">
+      <div class="section-title">ADD NEW STATION</div>
+      <form method="POST" action="{{ url_for('add_station') }}">
+        <div class="form-group"><label>Station Name</label><input type="text" name="name" placeholder="e.g. Station F" required></div>
+        <div class="form-group"><label>Location (City)</label><input type="text" name="location" placeholder="e.g. Hyderabad" required></div>
+        <div class="form-row">
+          <div class="form-group"><label>Total Slots</label><input type="number" name="total_slots" value="8" min="1" max="30" required></div>
+          <div class="form-group"><label>Power (kW)</label><input type="number" name="power_kw" value="50" step="0.5" min="3" required></div>
+        </div>
+        <div class="form-group">
+          <label>Charger Type</label>
+          <select name="charger_type">
+            <option>AC Standard</option>
+            <option>AC/DC Fast</option>
+            <option selected>DC Fast</option>
+            <option>DC Ultra-Fast</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-volt">+ Add Station</button>
+      </form>
+    </div>
+  </div>
+</div>
+<style>@keyframes fadein{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}</style>
+{% endblock %}
+{% block scripts %}
+<script>
+function show(name,el){
+  document.querySelectorAll('[id^="tab-"]').forEach(t=>{t.style.display='none';t.style.animation='';});
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  const tab=document.getElementById('tab-'+name);
+  tab.style.display='block';tab.style.animation='fadein .4s both';
+  el.classList.add('active');
+}
+</script>
+{% endblock %}

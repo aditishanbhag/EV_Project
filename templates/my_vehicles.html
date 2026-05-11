@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}My Vehicles — EV ChargePro{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header flex justify-between" style="align-items:flex-start">
+    <div><h1>MY VEHICLES</h1><p>Registered EV fleet from the vehicles table</p></div>
+  </div>
+
+  <!-- Vehicle cards from vehicles table -->
+  {% if vehicles %}
+  <div class="section-title">REGISTERED VEHICLES</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.25rem;margin-bottom:2.5rem">
+    {% for v in vehicles %}
+    <div class="card" style="animation:fadein .5s {{ loop.index * 0.1 }}s both">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div>
+          <div style="font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:var(--text)">{{ v.model_name }}</div>
+          <div style="font-size:.72rem;color:var(--text-ghost);margin-top:.2rem">Vehicle ID: #{{ v.vehicle_id }}</div>
+        </div>
+        <div style="width:48px;height:48px;border-radius:12px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);display:flex;align-items:center;justify-content:center;font-size:1.4rem">🚗</div>
+      </div>
+
+      <!-- Battery info -->
+      <div style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.04);border-radius:8px;padding:.85rem;margin-bottom:.9rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div>
+            <div style="font-size:.62rem;color:var(--text-ghost);text-transform:uppercase;letter-spacing:1px;margin-bottom:.3rem">Battery</div>
+            <div style="font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;color:var(--plasma)">{{ v.battery_capacity }} <span style="font-size:.7rem;color:var(--text-dim)">kWh</span></div>
+          </div>
+          <div>
+            <div style="font-size:.62rem;color:var(--text-ghost);text-transform:uppercase;letter-spacing:1px;margin-bottom:.3rem">Sessions</div>
+            <div style="font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;color:var(--volt)">{{ v.total_sessions }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charge level bar -->
+      <div style="margin-bottom:.9rem">
+        <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--text-ghost);margin-bottom:.3rem">
+          <span>CURRENT CHARGE</span>
+          <span style="color:{% if v.current_charge >= 70 %}var(--volt){% elif v.current_charge >= 40 %}var(--ember){% else %}var(--danger){% endif %};font-weight:700;font-family:'Orbitron',monospace">{{ v.current_charge }}%</span>
+        </div>
+        <div class="cap-bar">
+          <div class="cap-fill {% if v.current_charge >= 70 %}full{% elif v.current_charge >= 40 %}mid{% else %}low{% endif %}" style="width:{{ v.current_charge }}%"></div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+        <div style="background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.1);border-radius:7px;padding:.6rem;text-align:center">
+          <div style="font-family:'Orbitron',monospace;font-size:.9rem;font-weight:700;color:var(--volt)">{{ v.total_energy|round(1) }}</div>
+          <div style="font-size:.62rem;color:var(--text-ghost);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">kWh Used</div>
+        </div>
+        <div style="background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.1);border-radius:7px;padding:.6rem;text-align:center">
+          <div style="font-family:'Orbitron',monospace;font-size:.9rem;font-weight:700;color:#ffd700">₹{{ v.total_cost|int }}</div>
+          <div style="font-size:.62rem;color:var(--text-ghost);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">Total Spent</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Add Vehicle Form -->
+  <div class="section-title">ADD NEW VEHICLE</div>
+  <div class="card" style="max-width:540px;animation:fadein .5s .3s both">
+    <form method="POST" action="{{ url_for('add_vehicle') }}">
+      <div class="form-group">
+        <label>Vehicle Model</label>
+        <select name="model_name" required>
+          <option value="">-- Select your EV --</option>
+          <option>Tata Nexon EV</option>
+          <option>Tata Tigor EV</option>
+          <option>MG ZS EV</option>
+          <option>Hyundai Kona EV</option>
+          <option>Hyundai Ioniq 5</option>
+          <option>Tesla Model 3</option>
+          <option>Tesla Model Y</option>
+          <option>Mahindra XUV400</option>
+          <option>BYD Atto 3</option>
+          <option>Citroen eC3</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Battery Capacity (kWh)</label><input type="number" name="battery_capacity" placeholder="e.g. 40" min="10" max="200" step="0.5" required></div>
+        <div class="form-group"><label>Current Charge (%)</label><input type="number" name="current_charge" placeholder="e.g. 75" min="0" max="100" value="50"></div>
+      </div>
+      <button type="submit" class="btn btn-volt">+ Add Vehicle</button>
+    </form>
+  </div>
+</div>
+<style>@keyframes fadein{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}</style>
+{% endblock %}

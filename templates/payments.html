@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Payments — EV ChargePro{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>PAYMENTS</h1>
+    <p>Manage payments from the payments table</p>
+  </div>
+
+  <!-- Unpaid sessions -->
+  {% if unpaid %}
+  <div class="section-title" style="color:var(--ember)">PENDING PAYMENT</div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;margin-bottom:2.5rem">
+    {% for u in unpaid %}
+    <div class="card" style="border-color:rgba(255,107,26,.3);animation:fadein .5s {{ loop.index * 0.1 }}s both">
+
+      <div style="display:flex;justify-content:space-between;margin-bottom:.75rem">
+        <div>
+          <div style="font-family:'Orbitron',monospace;font-size:.9rem;font-weight:700">
+            {{ u.model_name }}
+          </div>
+          <div style="font-size:.75rem;color:var(--text-dim);margin-top:.2rem">
+            {{ u.station_name }}
+          </div>
+        </div>
+
+        <div style="text-align:right">
+          <div style="font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:700;color:#ffd700">
+            ₹{{ u.cost }}
+          </div>
+          <div style="font-size:.65rem;color:var(--text-ghost)">
+            {{ u.energy_used }} kWh
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:1rem">
+        📅 📅 {{ u.start_time.strftime('%Y-%m-%d %H:%M') if u.start_time else '—' }}
+      </div>
+
+      <!-- ✅ Razorpay Payment UI -->
+      <div style="display:flex;gap:.5rem">
+
+        <select style="flex:1;background:rgba(0,0,0,.4);border:1px solid rgba(0,212,255,.15);
+          color:var(--text);padding:.5rem .75rem;border-radius:7px;
+          font-family:'Exo 2',sans-serif;font-size:.82rem">
+
+          <option value="UPI">📱 UPI</option>
+          <option value="Card">💳 Card</option>
+          <option value="Net Banking">🏦 Net Banking</option>
+          <option value="Wallet">👛 Wallet</option>
+        </select>
+
+        <!-- 🔥 UPDATED BUTTON -->
+        <button type="button"
+                onclick="payNow({{ u.cost }})"
+                class="btn btn-gold btn-sm">
+          Pay ₹{{ u.cost }}
+        </button>
+
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Payment history -->
+  {% if paid %}
+  <div class="section-title">PAYMENT HISTORY</div>
+
+  <div class="card" style="overflow-x:auto;animation:fadein .5s .3s both">
+    <table class="data-table" style="min-width:620px">
+      <thead>
+        <tr>
+          <th>Payment ID</th>
+          <th>Vehicle</th>
+          <th>Station</th>
+          <th>Session Date</th>
+          <th>Method</th>
+          <th>Amount</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for p in paid %}
+        <tr style="animation:fadein .4s {{ loop.index * 0.07 }}s both">
+          <td>#{{ p.payment_id }}</td>
+          <td>{{ p.model_name }}</td>
+          <td>{{ p.station_name }}</td>
+          <td>{{ p.start_time.strftime('%Y-%m-%d') if p.start_time else '—' }}</td>
+          <td>{{ p.payment_method }}</td>
+          <td style="color:#ffd700">₹{{ p.amount }}</td>
+          <td>{{ p.status }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% elif not unpaid %}
+  <div class="card" style="text-align:center;padding:4rem 2rem;animation:fadein .5s both">
+    <div style="font-size:3rem;margin-bottom:1rem">💳</div>
+    <div style="font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;margin-bottom:.5rem">
+      NO PAYMENTS YET
+    </div>
+    <div style="color:var(--text-dim);font-size:.87rem;margin-bottom:1.5rem">
+      Complete a charging session to see payments here
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-plasma">
+      Book a Session →
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+
+<style>
+@keyframes fadein {
+  from {opacity:0; transform:translateY(16px)}
+  to {opacity:1; transform:translateY(0)}
+}
+</style>
+
+<!-- ✅ RAZORPAY SCRIPT -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+function payNow(amount) {
+
+  fetch(`/create_order/${amount}`)
+    .then(res => res.json())
+    .then(data => {
+
+      console.log("ORDER DATA:", data);
+
+      if (!data.id) {
+        alert("Order creation failed");
+        return;
+      }
+
+      var options = {
+        "key": "rzp_test_SZpDB6IcaJWFfB",   // 🔥 your test key
+        "amount": data.amount,
+        "currency": "INR",
+        "name": "EV ChargePro",
+        "description": "Charging Payment",
+        "order_id": data.id,
+
+        "handler": function (response){
+          alert("Payment Successful!");
+          window.location.reload();
+        }
+      };
+
+      var rzp = new Razorpay(options);
+      rzp.open();
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Error creating order");
+    });
+}
+</script>
+
+{% endblock %}

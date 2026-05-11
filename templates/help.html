@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Help Desk — EV ChargePro{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <div class="page-header">
+    <h1>HELP DESK</h1>
+    <p>Report issues or contact support</p>
+  </div>
+
+  <!-- FORM -->
+  <div class="card" style="margin-bottom:2rem">
+    <form method="POST">
+      <input type="text" name="subject" placeholder="Subject" required
+             style="width:100%;margin-bottom:1rem;padding:.6rem;border-radius:6px">
+
+      <textarea name="message" placeholder="Describe your issue..." required
+                style="width:100%;height:100px;margin-bottom:1rem;padding:.6rem;border-radius:6px"></textarea>
+
+      <button class="btn btn-plasma">Submit Ticket</button>
+    </form>
+  </div>
+
+  <!-- TICKETS -->
+  <div class="section-title">YOUR TICKETS</div>
+
+  {% if tickets %}
+    {% for t in tickets %}
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;justify-content:space-between">
+        <div>
+          <strong>{{ t.subject }}</strong>
+          <div style="font-size:.8rem;color:gray">{{ t.created_at }}</div>
+        </div>
+        <span class="badge {% if t.status=='Open' %}badge-info{% else %}badge-confirm{% endif %}">
+          {{ t.status }}
+        </span>
+      </div>
+
+      <p style="margin-top:.5rem">{{ t.message }}</p>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="card">No tickets yet</div>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register — EV ChargePro</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--void:#020408;--plasma:#00d4ff;--volt:#39ff6e;--danger:#ff2d55;--text:#e8f4fd;--text-dim:#7ab3cc;--text-ghost:#3a6b82;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--void);color:var(--text);font-family:'Exo 2',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:2rem 1rem}
+canvas{position:fixed;inset:0;z-index:0}
+.grid-bg{position:fixed;inset:0;z-index:1;pointer-events:none;background-image:linear-gradient(rgba(0,212,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.04) 1px,transparent 1px);background-size:50px 50px;mask-image:radial-gradient(ellipse at center,rgba(0,0,0,.6) 0%,transparent 75%);animation:gs 25s linear infinite}
+@keyframes gs{to{background-position:0 50px}}
+.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:1;filter:blur(80px)}
+.orb1{width:500px;height:500px;top:-150px;right:-100px;background:radial-gradient(circle,rgba(0,100,180,.2),transparent 70%)}
+.orb2{width:400px;height:400px;bottom:-100px;left:-80px;background:radial-gradient(circle,rgba(0,120,60,.18),transparent 70%)}
+.wrap{position:relative;z-index:10;width:100%;max-width:500px}
+.logo{text-align:center;margin-bottom:1.75rem;animation:fi .8s ease both}
+@keyframes fi{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+.logo h1{font-family:'Orbitron',monospace;font-size:1.8rem;font-weight:900;letter-spacing:3px}
+.logo h1 .c1{color:var(--plasma);text-shadow:0 0 20px rgba(0,212,255,.5)}
+.logo h1 .c2{color:var(--volt);text-shadow:0 0 20px rgba(57,255,110,.5)}
+.logo p{color:var(--text-dim);font-size:.75rem;margin-top:.4rem;letter-spacing:2px;text-transform:uppercase}
+.card{background:rgba(6,18,32,.88);backdrop-filter:blur(24px) saturate(160%);border:1px solid rgba(0,212,255,.18);border-radius:16px;padding:2.25rem;position:relative;overflow:hidden;animation:fi2 .8s .15s ease both;box-shadow:0 8px 60px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
+@keyframes fi2{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(57,255,110,.7),rgba(0,212,255,.6),transparent)}
+.card h2{font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;margin-bottom:1.5rem;letter-spacing:1px}
+.section-divider{font-size:.68rem;color:var(--text-ghost);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin:1.25rem 0 1rem;display:flex;align-items:center;gap:.75rem}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:rgba(0,212,255,.1)}
+.fg{margin-bottom:1rem}
+.fg label{display:block;font-size:.65rem;color:var(--text-dim);margin-bottom:.4rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px}
+.fg input,.fg select{width:100%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border:1px solid rgba(0,212,255,.12);color:var(--text);padding:.7rem 1rem;border-radius:9px;font-size:.88rem;font-family:'Exo 2',sans-serif;transition:all .25s;-webkit-appearance:none}
+.fg input::placeholder{color:var(--text-ghost)}
+.fg input:focus,.fg select:focus{outline:none;border-color:var(--volt);box-shadow:0 0 0 3px rgba(57,255,110,.1);background:rgba(0,20,10,.6)}
+.fg select option{background:#060d14}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.btn-sub{width:100%;background:linear-gradient(135deg,rgba(0,110,40,.9),rgba(0,70,25,.8));color:var(--volt);border:1px solid rgba(57,255,110,.45);padding:.8rem;border-radius:9px;font-size:.95rem;font-weight:700;font-family:'Orbitron',monospace;letter-spacing:2px;cursor:pointer;transition:all .3s;margin-top:.5rem;position:relative;overflow:hidden;box-shadow:0 0 20px rgba(57,255,110,.2);text-shadow:0 0 15px rgba(57,255,110,.6)}
+.btn-sub::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);transition:left .4s}
+.btn-sub:hover{box-shadow:0 0 35px rgba(57,255,110,.5);transform:translateY(-2px)}
+.btn-sub:hover::before{left:100%}
+.auth-link{text-align:center;margin-top:1.4rem;font-size:.84rem;color:var(--text-dim)}
+.auth-link a{color:var(--plasma);text-decoration:none;font-weight:600}
+.alert-error{background:rgba(255,45,85,.08);border:1px solid rgba(255,45,85,.3);color:#ff6b88;padding:.75rem 1rem;border-radius:8px;font-size:.83rem;margin-bottom:1rem}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="grid-bg"></div>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="wrap">
+  <div class="logo">
+    <h1><span class="c1">⚡ CHARGE</span><span class="c2">PRO</span></h1>
+    <p>Create Your Account</p>
+  </div>
+  <div class="card">
+    <h2>REGISTER</h2>
+    {% if error %}<div class="alert-error">⚠ {{ error }}</div>{% endif %}
+    <form method="POST">
+      <div class="section-divider">Account Info</div>
+      <div class="fg"><label>Full Name</label><input type="text" name="name" placeholder="Rahul Sharma" required></div>
+      <div class="row2">
+        <div class="fg"><label>Email</label><input type="email" name="email" placeholder="rahul@gmail.com" required></div>
+        <div class="fg"><label>Phone</label><input type="tel" name="phone" placeholder="9876543210"></div>
+      </div>
+      <div class="fg"><label>Password</label><input type="password" name="password" placeholder="••••••••" required></div>
+
+      <div class="section-divider">Vehicle Info (Optional)</div>
+      <div class="fg">
+        <label>Vehicle Model</label>
+        <select name="vehicle_model">
+          <option value="">-- Select your EV --</option>
+          <option>Tata Nexon EV</option>
+          <option>Tata Tigor EV</option>
+          <option>MG ZS EV</option>
+          <option>Hyundai Kona EV</option>
+          <option>Hyundai Ioniq 5</option>
+          <option>Tesla Model 3</option>
+          <option>Tesla Model Y</option>
+          <option>Mahindra XUV400</option>
+          <option>BYD Atto 3</option>
+          <option>Citroen eC3</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="fg"><label>Battery Capacity (kWh)</label><input type="number" name="battery_capacity" placeholder="e.g. 40" min="10" max="200"></div>
+      <button type="submit" class="btn-sub">CREATE ACCOUNT →</button>
+    </form>
+    <div class="auth-link">Already registered? <a href="{{ url_for('login') }}">Login here</a></div>
+  </div>
+</div>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');let W,H,pts=[];
+function resize(){W=c.width=innerWidth;H=c.height=innerHeight;}resize();window.addEventListener('resize',resize);
+for(let i=0;i<80;i++)pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.2+.4,col:Math.random()>.5?'0,212,255':'57,255,110',a:Math.random()*.5+.1});
+function draw(){ctx.clearRect(0,0,W,H);pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(${p.col},${p.a})`;ctx.fill();});for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<110){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(57,255,110,${(1-d/110)*.1})`;ctx.lineWidth=.5;ctx.stroke();}}requestAnimationFrame(draw);}draw();
+</script>
+</body>
+</html>

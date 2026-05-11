@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Payments — EV ChargePro{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>PAYMENTS</h1>
+    <p>Manage payments from the payments table</p>
+  </div>
+
+  <!-- Unpaid sessions -->
+  {% if unpaid %}
+  <div class="section-title" style="color:var(--ember)">PENDING PAYMENT</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;margin-bottom:2.5rem">
+    {% for u in unpaid %}
+    <div class="card" style="border-color:rgba(255,107,26,.3);animation:fadein .5s {{ loop.index * 0.1 }}s both">
+      <div style="display:flex;justify-content:space-between;margin-bottom:.75rem">
+        <div>
+          <div style="font-family:'Orbitron',monospace;font-size:.9rem;font-weight:700">{{ u.model_name }}</div>
+          <div style="font-size:.75rem;color:var(--text-dim);margin-top:.2rem">{{ u.station_name }}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:700;color:#ffd700">₹{{ u.cost }}</div>
+          <div style="font-size:.65rem;color:var(--text-ghost)">{{ u.energy_used }} kWh</div>
+        </div>
+      </div>
+      <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:1rem">
+        📅 {{ u.start_time[:16] if u.start_time else '—' }}
+      </div>
+      <form method="POST" action="{{ url_for('make_payment', session_id=u.session_id) }}" style="display:flex;gap:.5rem">
+        <select name="method" style="flex:1;background:rgba(0,0,0,.4);border:1px solid rgba(0,212,255,.15);color:var(--text);padding:.5rem .75rem;border-radius:7px;font-family:'Exo 2',sans-serif;font-size:.82rem;-webkit-appearance:none">
+          <option value="UPI">📱 UPI</option>
+          <option value="Card">💳 Card</option>
+          <option value="Net Banking">🏦 Net Banking</option>
+          <option value="Wallet">👛 Wallet</option>
+        </select>
+        <button type="submit" class="btn btn-gold btn-sm">Pay ₹{{ u.cost }}</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Payment history from payments table -->
+  {% if paid %}
+  <div class="section-title">PAYMENT HISTORY</div>
+  <div class="card" style="overflow-x:auto;animation:fadein .5s .3s both">
+    <table class="data-table" style="min-width:620px">
+      <thead>
+        <tr><th>Payment ID</th><th>Vehicle</th><th>Station</th><th>Session Date</th><th>Method</th><th>Amount</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for p in paid %}
+        <tr style="animation:fadein .4s {{ loop.index * 0.07 }}s both">
+          <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-ghost)">#{{ p.payment_id }}</td>
+          <td style="font-weight:600">{{ p.model_name }}</td>
+          <td style="font-size:.83rem;color:var(--text-dim)">{{ p.station_name }}</td>
+          <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-dim);white-space:nowrap">{{ p.start_time[:10] if p.start_time else '—' }}</td>
+          <td>
+            {% if p.payment_method=='UPI' %}<span class="badge badge-confirm">📱 UPI</span>
+            {% elif p.payment_method=='Card' %}<span class="badge badge-gold">💳 Card</span>
+            {% elif p.payment_method=='Net Banking' %}<span class="badge badge-info">🏦 Net Banking</span>
+            {% else %}<span class="badge badge-info">{{ p.payment_method }}</span>{% endif %}
+          </td>
+          <td style="color:#ffd700;font-family:'Orbitron',monospace;font-size:.9rem;font-weight:700">₹{{ p.amount }}</td>
+          <td>
+            {% if p.status=='Paid' %}<span class="badge badge-paid">✓ Paid</span>
+            {% else %}<span class="badge badge-cancel">{{ p.status }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif not unpaid %}
+  <div class="card" style="text-align:center;padding:4rem 2rem;animation:fadein .5s both">
+    <div style="font-size:3rem;margin-bottom:1rem">💳</div>
+    <div style="font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;margin-bottom:.5rem;background:linear-gradient(90deg,var(--text),var(--plasma));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">NO PAYMENTS YET</div>
+    <div style="color:var(--text-dim);font-size:.87rem;margin-bottom:1.5rem">Complete a charging session to see payments here</div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-plasma">Book a Session →</a>
+  </div>
+  {% endif %}
+</div>
+<style>@keyframes fadein{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}</style>
+{% endblock %}

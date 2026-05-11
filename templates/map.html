@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+{% block title %}GPS Station Map — EV ChargePro{% endblock %}
+
+{% block content %}
+<div style="position:relative;z-index:10;padding:1.25rem 2rem 0">
+
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem">
+    <div>
+      <h1 style="font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:700;
+        background:linear-gradient(90deg,var(--text) 0%,var(--plasma) 55%,var(--volt) 100%);
+        -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:1px">
+        GPS STATION MAP
+      </h1>
+      <p style="color:var(--text-dim);font-size:.84rem;margin-top:.3rem">
+        Live locations across <span style="color:var(--plasma);font-weight:600">{{ stations|length }} stations</span>
+      </p>
+    </div>
+    <button id="btn-locate" onclick="locateMe()" style="
+      background:linear-gradient(135deg,rgba(0,140,175,.85),rgba(0,100,140,.7));
+      color:var(--plasma);border:1px solid rgba(0,212,255,.4);padding:.55rem 1.2rem;
+      border-radius:8px;font-family:'Exo 2',sans-serif;font-size:.85rem;font-weight:600;
+      cursor:pointer;display:flex;align-items:center;gap:.5rem;transition:all .25s">
+      📍 Find Nearest Stations
+    </button>
+  </div>
+
+  <!-- Layout: map + sidebar -->
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:1rem;height:80vh">
+
+    <!-- Map -->
+    <div id="map" style="border-radius:12px;border:1px solid var(--border);overflow:hidden"></div>
+
+    <!-- Sidebar -->
+    <div style="display:flex;flex-direction:column;gap:0;overflow:hidden;border-radius:12px;border:1px solid var(--border);background:var(--panel)">
+      <div style="padding:.9rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-family:'Orbitron',monospace;font-size:.75rem;font-weight:700;color:var(--text-dim);letter-spacing:1.5px">STATIONS</span>
+        <span id="loc-status" style="font-size:.7rem;color:var(--text-ghost)">Click "Find Nearest" to sort</span>
+      </div>
+      <div id="station-list" style="overflow-y:auto;flex:1;padding:.5rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  .leaflet-popup-content-wrapper {
+    background:#060d14;border:1px solid rgba(0,212,255,.3);border-radius:10px;
+    color:#e8f4fd;box-shadow:0 4px 30px rgba(0,212,255,.15);
+  }
+  .leaflet-popup-tip { background:#060d14; }
+  .leaflet-popup-content { margin:12px 14px;font-family:'Exo 2',sans-serif;font-size:.83rem; }
+  .pop-title { font-family:'Orbitron',monospace;font-size:.82rem;font-weight:700;color:#00d4ff;margin-bottom:.4rem; }
+  .pop-row { display:flex;justify-content:space-between;margin:.25rem 0;font-size:.78rem;color:#7ab3cc; }
+  .pop-row span:last-child { color:#e8f4fd;font-weight:600; }
+  .pop-btn { display:block;width:100%;margin-top:.75rem;padding:.45rem;text-align:center;
+    background:linear-gradient(135deg,rgba(0,140,175,.85),rgba(0,100,140,.7));
+    color:#00d4ff;border:1px solid rgba(0,212,255,.4);border-radius:7px;
+    font-family:'Exo 2',sans-serif;font-weight:600;font-size:.82rem;
+    text-decoration:none;transition:all .2s; }
+  .pop-btn:hover { box-shadow:0 0 20px rgba(0,212,255,.4); }
+  .pop-btn-disabled { background:rgba(255,255,255,.04);color:#3a6b82;border-color:rgba(255,255,255,.06);cursor:not-allowed; }
+
+  .s-card { padding:.75rem;border-radius:8px;border:1px solid rgba(0,212,255,.08);
+    margin-bottom:.4rem;cursor:pointer;transition:all .25s;background:rgba(0,0,0,.2); }
+  .s-card:hover { border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.05); }
+  .s-card.active { border-color:rgba(0,212,255,.5);background:rgba(0,212,255,.08); }
+  .s-name { font-family:'Orbitron',monospace;font-size:.72rem;font-weight:700;color:#e8f4fd;margin-bottom:.25rem; }
+  .s-loc  { font-size:.72rem;color:#7ab3cc;margin-bottom:.35rem; }
+  .s-meta { display:flex;gap:.4rem;flex-wrap:wrap;align-items:center; }
+  .s-dist { font-family:'Orbitron',monospace;font-size:.7rem;color:#39ff6e;font-weight:700; }
+  .s-slots { font-size:.68rem;padding:.15rem .5rem;border-radius:20px;font-weight:700; }
+  .slots-ok   { background:rgba(57,255,110,.1);color:#39ff6e;border:1px solid rgba(57,255,110,.3); }
+  .slots-low  { background:rgba(255,107,26,.1);color:#ff6b1a;border:1px solid rgba(255,107,26,.3); }
+  .slots-none { background:rgba(255,45,85,.1);color:#ff2d55;border:1px solid rgba(255,45,85,.3); }
+
+  @media(max-width:768px){
+    div[style*="grid-template-columns:1fr 340px"]{ grid-template-columns:1fr!important;height:auto!important; }
+    #map{ height:55vw!important;min-height:260px; }
+    div[style*="grid-template-columns:1fr 340px"]>div:last-child{ height:260px; }
+  }
+</style>
+
+<script>
+// ── Station data from Flask ──────────────────────────────────────────────────
+const STATIONS = [
+{% for s in stations %}
+  {
+    id:       {{ s.station_id }},
+    name:     {{ s.station_name | tojson }},
+    location: {{ s.location | tojson }},
+    total:    {{ s.total_slots }},
+    avail:    {{ s.available_slots }},
+    lat:  null,
+    lng:  null,
+    dist: null,
+    marker: null
+  }{% if not loop.last %},{% endif %}
+{% endfor %}
+];
+
+// ── City → coordinates lookup (India) ───────────────────────────────────────
+const CITY_COORDS = {
+  'mumbai':        [19.0760,  72.8777],
+  'delhi':         [28.6139,  77.2090],
+  'new delhi':     [28.6139,  77.2090],
+  'bangalore':     [12.9716,  77.5946],
+  'bengaluru':     [12.9716,  77.5946],
+  'hyderabad':     [17.3850,  78.4867],
+  'chennai':       [13.0827,  80.2707],
+  'kolkata':       [22.5726,  88.3639],
+  'pune':          [18.5204,  73.8567],
+  'ahmedabad':     [23.0225,  72.5714],
+  'jaipur':        [26.9124,  75.7873],
+  'lucknow':       [26.8467,  80.9462],
+  'surat':         [21.1702,  72.8311],
+  'chandigarh':    [30.7333,  76.7794],
+  'indore':        [22.7196,  75.8577],
+  'bhopal':        [23.2599,  77.4126],
+  'nagpur':        [21.1458,  79.0882],
+  'visakhapatnam': [17.6868,  83.2185],
+  'vizag':         [17.6868,  83.2185],
+  'kochi':         [ 9.9312,  76.2673],
+  'cochin':        [ 9.9312,  76.2673],
+  'coimbatore':    [11.0168,  76.9558],
+  'noida':         [28.5355,  77.3910],
+  'gurgaon':       [28.4595,  77.0266],
+  'gurugram':      [28.4595,  77.0266],
+  'vadodara':      [22.3072,  73.1812],
+  'nashik':        [19.9975,  73.7898],
+  'patna':         [25.5941,  85.1376],
+  'agra':          [27.1767,  78.0081],
+  'varanasi':      [25.3176,  82.9739],
+  'rajkot':        [22.3039,  70.8022],
+  'meerut':        [28.9845,  77.7064],
+  'faridabad':     [28.4089,  77.3178],
+  'thane':         [19.2183,  72.9781],
+  'navi mumbai':   [19.0330,  73.0297],
+  'aurangabad':    [19.8762,  75.3433],
+  'amritsar':      [31.6340,  74.8723],
+  'jabalpur':      [23.1815,  79.9864],
+  'gwalior':       [26.2183,  78.1828],
+  'vijayawada':    [16.5062,  80.6480],
+  'jodhpur':       [26.2389,  73.0243],
+  'raipur':        [21.2514,  81.6296],
+  'kota':          [25.2138,  75.8648],
+  'guwahati':      [26.1445,  91.7362],
+  'thiruvananthapuram': [8.5241, 76.9366],
+  'trivandrum':    [ 8.5241,  76.9366],
+  'bhubaneswar':   [20.2961,  85.8245],
+  'dehradun':      [30.3165,  78.0322],
+  'shimla':        [31.1048,  77.1734],
+  'mysore':        [12.2958,  76.6394],
+  'mysuru':        [12.2958,  76.6394],
+  'mangalore':     [12.9141,  74.8560],
+  'mangaluru':     [12.9141,  74.8560],
+  'hubli':         [15.3647,  75.1240],
+  'belgaum':       [15.8497,  74.4977],
+  'tiruchirappalli':[10.7905, 78.7047],
+  'trichy':        [10.7905,  78.7047],
+  'madurai':       [ 9.9252,  78.1198],
+  'salem':         [11.6643,  78.1460],
+  'tirunelveli':   [ 8.7139,  77.7567],
+};
+
+function getCoords(locationStr) {
+  if (!locationStr) return null;
+  const key = locationStr.trim().toLowerCase();
+  // Exact match first
+  if (CITY_COORDS[key]) return CITY_COORDS[key];
+  // Partial match — location string might contain extra words
+  for (const city in CITY_COORDS) {
+    if (key.includes(city) || city.includes(key)) return CITY_COORDS[city];
+  }
+  return null;
+}
+
+// Assign coordinates with small random jitter so stations in the same city
+// don't stack on top of each other
+STATIONS.forEach(s => {
+  const c = getCoords(s.location);
+  if (c) {
+    s.lat = c[0] + (Math.random() - 0.5) * 0.04;
+    s.lng = c[1] + (Math.random() - 0.5) * 0.04;
+  }
+});
+
+// ── Haversine distance (km) ──────────────────────────────────────────────────
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+// ── Map init ─────────────────────────────────────────────────────────────────
+const map = L.map('map').setView([20.5937, 78.9629], 5);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO'
+}).addTo(map);
+
+// Icons
+function makeIcon(color, size=14) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;
+            background:${color};border:2px solid rgba(255,255,255,.6);
+            box-shadow:0 0 10px ${color}"></div>`,
+    iconSize: [size, size], iconAnchor: [size/2, size/2], popupAnchor: [0, -size/2]
+  });
+}
+const iconAvail = makeIcon('#39ff6e');
+const iconFull  = makeIcon('#ff2d55');
+const iconUser  = makeIcon('#00d4ff', 18);
+
+let userMarker = null;
+
+// Popup HTML
+function popupHTML(s) {
+  const slotColor = s.avail === 0 ? '#ff2d55' : s.avail < s.total/2 ? '#ff6b1a' : '#39ff6e';
+  const distStr = s.dist !== null
+    ? `<div class="pop-row"><span>Distance</span>
+       <span style="color:#39ff6e">${s.dist < 1 ? (s.dist*1000).toFixed(0)+' m' : s.dist.toFixed(1)+' km'}</span></div>`
+    : '';
+  return `
+    <div class="pop-title">🔌 ${s.name}</div>
+    <div class="pop-row"><span>Location</span><span>📍 ${s.location}</span></div>
+    ${distStr}
+    <div class="pop-row"><span>Slots</span><span style="color:${slotColor}">${s.avail} / ${s.total} free</span></div>
+    ${s.avail > 0
+      ? `<a href="/book/${s.id}" class="pop-btn">⚡ Book This Station</a>`
+      : `<div class="pop-btn pop-btn-disabled">❌ No Slots Available</div>`}
+  `;
+}
+
+// Add markers for stations that resolved a city
+const validStations = STATIONS.filter(s => s.lat && s.lng);
+validStations.forEach(s => {
+  s.marker = L.marker([s.lat, s.lng], { icon: s.avail === 0 ? iconFull : iconAvail })
+    .addTo(map)
+    .bindPopup(popupHTML(s), { maxWidth: 260 });
+});
+
+// Fit map to markers
+if (validStations.length > 0) {
+  map.fitBounds(L.latLngBounds(validStations.map(s => [s.lat, s.lng])), { padding: [40, 40] });
+}
+
+// ── Sidebar render ───────────────────────────────────────────────────────────
+function renderList(list) {
+  const el = document.getElementById('station-list');
+  el.innerHTML = '';
+
+  if (list.length === 0) {
+    el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:#3a6b82;font-size:.8rem">
+      No stations found for the stored city names.<br>Check that location names match known cities.
+    </div>`;
+    return;
+  }
+
+  list.forEach((s, i) => {
+    const slotClass = s.avail === 0 ? 'slots-none' : s.avail < s.total/2 ? 'slots-low' : 'slots-ok';
+    const distStr = s.dist !== null
+      ? `<span class="s-dist">${s.dist < 1 ? (s.dist*1000).toFixed(0)+' m' : s.dist.toFixed(1)+' km'}</span>`
+      : '';
+    const card = document.createElement('div');
+    card.className = 's-card';
+    card.id = 'sc-' + s.id;
+    card.innerHTML = `
+      <div class="s-name">${i+1}. ${s.name}</div>
+      <div class="s-loc">📍 ${s.location}</div>
+      <div class="s-meta">
+        ${distStr}
+        <span class="s-slots ${slotClass}">${s.avail}/${s.total} slots</span>
+      </div>
+    `;
+    card.onclick = () => {
+      document.querySelectorAll('.s-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      map.setView([s.lat, s.lng], 14, { animate: true });
+      s.marker && s.marker.openPopup();
+    };
+    el.appendChild(card);
+  });
+}
+
+renderList(validStations);
+
+// ── Geolocation ──────────────────────────────────────────────────────────────
+function locateMe() {
+  const btn = document.getElementById('btn-locate');
+  btn.textContent = '⏳ Locating...';
+  btn.disabled = true;
+
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    btn.textContent = '📍 Find Nearest Stations';
+    btn.disabled = false;
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(pos => {
+    const uLat = pos.coords.latitude;
+    const uLng = pos.coords.longitude;
+
+    // Place user marker
+    if (userMarker) map.removeLayer(userMarker);
+    userMarker = L.marker([uLat, uLng], { icon: iconUser })
+      .addTo(map)
+      .bindPopup('<div style="color:#00d4ff;font-family:Orbitron,monospace;font-size:.8rem;font-weight:700">📍 You are here</div>')
+      .openPopup();
+
+    // Calculate distances & refresh popups
+    validStations.forEach(s => {
+      s.dist = haversine(uLat, uLng, s.lat, s.lng);
+      if (s.marker) s.marker.setPopupContent(popupHTML(s));
+    });
+
+    // Sort by distance and re-render sidebar
+    const sorted = validStations.slice().sort((a, b) => a.dist - b.dist);
+    renderList(sorted);
+
+    // Zoom to nearest station
+    if (sorted.length > 0) {
+      map.setView([sorted[0].lat, sorted[0].lng], 13, { animate: true });
+      sorted[0].marker && sorted[0].marker.openPopup();
+      document.getElementById('sc-' + sorted[0].id)?.classList.add('active');
+    }
+
+    document.getElementById('loc-status').textContent = 'Sorted by distance from you';
+    btn.textContent = '📍 Find Nearest Stations';
+    btn.disabled = false;
+
+  }, () => {
+    alert('Could not get your location. Please allow location access and try again.');
+    btn.textContent = '📍 Find Nearest Stations';
+    btn.disabled = false;
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+</script>
+
+{% endblock %}

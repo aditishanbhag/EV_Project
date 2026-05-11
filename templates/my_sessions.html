@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Sessions — EV ChargePro{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header flex justify-between" style="align-items:flex-start">
+    <div><h1>CHARGING SESSIONS</h1><p>Your history from the charging_sessions table</p></div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-plasma">+ New Booking</a>
+  </div>
+
+  {% if sessions %}
+  {% set confirmed = sessions|selectattr('status','eq','Confirmed')|list|length %}
+  {% set completed = sessions|selectattr('status','in',['Completed',''])|list|length %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:1rem;margin-bottom:2rem">
+    <div class="stat-card" style="animation:fadein .4s .1s both">
+      <div><div class="stat-val" style="color:var(--plasma);font-size:1.6rem">{{ sessions|length }}</div><div class="stat-lbl">Total</div></div>
+    </div>
+    <div class="stat-card" style="animation:fadein .4s .2s both">
+      <div><div class="stat-val" style="color:var(--volt);font-size:1.6rem">{{ sessions|sum(attribute='energy_used') | round(1) }}</div><div class="stat-lbl">kWh Used</div></div>
+    </div>
+    <div class="stat-card" style="animation:fadein .4s .3s both">
+      <div><div class="stat-val" style="color:#ffd700;font-size:1.6rem">₹{{ sessions|sum(attribute='cost')|int }}</div><div class="stat-lbl">Total Cost</div></div>
+    </div>
+    <div class="stat-card" style="animation:fadein .4s .4s both">
+      <div><div class="stat-val" style="color:var(--ember);font-size:1.6rem">{{ confirmed }}</div><div class="stat-lbl">Upcoming</div></div>
+    </div>
+  </div>
+
+  <div class="card" style="overflow-x:auto;animation:fadein .5s .3s both">
+    <table class="data-table" style="min-width:700px">
+      <thead>
+        <tr><th>#</th><th>Vehicle</th><th>Station</th><th>Start Time</th><th>End Time</th><th>Energy (kWh)</th><th>Cost (₹)</th><th>Status</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for s in sessions %}
+        <tr style="animation:fadein .4s {{ loop.index * 0.07 }}s both">
+          <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-ghost)">#{{ s.session_id }}</td>
+          <td>
+            <div style="font-weight:600">{{ s.model_name }}</div>
+            <div style="font-size:.72rem;color:var(--text-ghost)">{{ s.charger_type }}</div>
+          </td>
+          <td>
+            <div style="font-size:.83rem">{{ s.station_name }}</div>
+            <div style="font-size:.72rem;color:var(--text-ghost)">{{ s.location }}</div>
+          </td>
+          <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-dim);white-space:nowrap">{{ s.start_time[:16] if s.start_time else '—' }}</td>
+          <td style="font-family:'Orbitron',monospace;font-size:.72rem;color:var(--text-dim);white-space:nowrap">{{ s.end_time[:16] if s.end_time else '—' }}</td>
+          <td style="color:var(--volt);font-family:'Orbitron',monospace;font-size:.85rem;font-weight:700">{{ s.energy_used }}</td>
+          <td style="color:#ffd700;font-family:'Orbitron',monospace;font-size:.85rem;font-weight:700">₹{{ s.cost }}</td>
+          <td>
+            {% if s.status=='Confirmed' %}<span class="badge badge-confirm">Confirmed</span>
+            {% elif s.status=='Completed' or s.status==None %}<span class="badge badge-active">Completed</span>
+            {% elif s.status=='Cancelled' %}<span class="badge badge-cancel">Cancelled</span>
+            {% else %}<span class="badge badge-info">{{ s.status }}</span>{% endif %}
+          </td>
+          <td>
+            {% if s.status=='Confirmed' %}
+              <a href="{{ url_for('cancel_session', session_id=s.session_id) }}" class="btn btn-danger btn-sm"
+                 onclick="return confirm('Cancel this session?')">Cancel</a>
+            {% else %}<span style="color:var(--text-ghost);font-size:.8rem">—</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% else %}
+  <div class="card" style="text-align:center;padding:4rem 2rem;animation:fadein .5s both">
+    <div style="font-size:3.5rem;margin-bottom:1.25rem;filter:drop-shadow(0 0 20px rgba(0,212,255,.4))">⚡</div>
+    <div style="font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700;margin-bottom:.6rem;background:linear-gradient(90deg,var(--text),var(--plasma));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">NO SESSIONS YET</div>
+    <div style="color:var(--text-dim);margin-bottom:2rem;font-size:.88rem">Book your first charging session to get started</div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-plasma">Find Stations →</a>
+  </div>
+  {% endif %}
+</div>
+<style>@keyframes fadein{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}</style>
+{% endblock %}

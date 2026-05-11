@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — EV ChargePro</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--void:#020408;--plasma:#00d4ff;--volt:#39ff6e;--danger:#ff2d55;--text:#e8f4fd;--text-dim:#7ab3cc;--text-ghost:#3a6b82;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--void);color:var(--text);font-family:'Exo 2',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{position:fixed;inset:0;z-index:0}
+.grid-bg{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:linear-gradient(rgba(0,212,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.04) 1px,transparent 1px);
+  background-size:50px 50px;mask-image:radial-gradient(ellipse at center,rgba(0,0,0,.6) 0%,transparent 75%);animation:gs 25s linear infinite}
+@keyframes gs{to{background-position:0 50px}}
+.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:1;filter:blur(80px)}
+.orb1{width:500px;height:500px;top:-150px;left:-100px;background:radial-gradient(circle,rgba(0,100,180,.25),transparent 70%);animation:o1 15s ease-in-out infinite alternate}
+.orb2{width:400px;height:400px;bottom:-100px;right:-80px;background:radial-gradient(circle,rgba(0,120,60,.2),transparent 70%);animation:o2 18s ease-in-out infinite alternate}
+@keyframes o1{to{transform:translate(60px,40px)}} @keyframes o2{to{transform:translate(-50px,-60px)}}
+
+.wrap{position:relative;z-index:10;width:100%;max-width:430px;padding:1.5rem}
+.logo{text-align:center;margin-bottom:2.5rem;animation:fi .8s ease both}
+@keyframes fi{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+.logo-ring{width:72px;height:72px;margin:0 auto 1rem;border-radius:50%;padding:3px;
+  background:conic-gradient(from 180deg,var(--plasma),var(--volt),var(--plasma));
+  animation:rr 6s linear infinite;box-shadow:0 0 30px rgba(0,212,255,.4),0 0 60px rgba(0,212,255,.15)}
+@keyframes rr{to{filter:hue-rotate(30deg)}}
+.logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--void);display:flex;align-items:center;justify-content:center;font-size:1.8rem}
+.logo h1{font-family:'Orbitron',monospace;font-size:2.2rem;font-weight:900;letter-spacing:3px;line-height:1}
+.logo h1 .c1{color:var(--plasma);text-shadow:0 0 20px rgba(0,212,255,.6)}
+.logo h1 .c2{color:var(--volt);text-shadow:0 0 20px rgba(57,255,110,.6)}
+.logo p{color:var(--text-dim);font-size:.78rem;margin-top:.5rem;letter-spacing:2px;text-transform:uppercase}
+
+.card{background:rgba(6,18,32,.88);backdrop-filter:blur(24px) saturate(160%);
+  border:1px solid rgba(0,212,255,.18);border-radius:16px;padding:2.25rem;
+  position:relative;overflow:hidden;animation:fi2 .8s .2s ease both;
+  box-shadow:0 8px 60px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
+@keyframes fi2{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,212,255,.8),rgba(57,255,110,.6),transparent)}
+.card h2{font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;margin-bottom:1.75rem;letter-spacing:1px}
+
+.fg{margin-bottom:1.1rem}
+.fg label{display:block;font-size:.65rem;color:var(--text-dim);margin-bottom:.45rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px}
+.fg input{width:100%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border:1px solid rgba(0,212,255,.12);color:var(--text);
+  padding:.7rem 1rem;border-radius:9px;font-size:.88rem;font-family:'Exo 2',sans-serif;transition:all .25s}
+.fg input::placeholder{color:var(--text-ghost)}
+.fg input:focus{outline:none;border-color:var(--plasma);box-shadow:0 0 0 3px rgba(0,212,255,.12),0 0 25px rgba(0,212,255,.08);background:rgba(0,20,40,.6)}
+
+.btn-sub{width:100%;background:linear-gradient(135deg,rgba(0,140,175,.9),rgba(0,90,130,.8));color:var(--plasma);
+  border:1px solid rgba(0,212,255,.45);padding:.8rem;border-radius:9px;font-size:.95rem;font-weight:700;
+  font-family:'Orbitron',monospace;letter-spacing:2px;cursor:pointer;transition:all .3s;margin-top:.5rem;
+  position:relative;overflow:hidden;box-shadow:0 0 20px rgba(0,212,255,.2);text-shadow:0 0 15px rgba(0,212,255,.6)}
+.btn-sub::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);transition:left .4s}
+.btn-sub:hover{box-shadow:0 0 35px rgba(0,212,255,.5);transform:translateY(-2px)}
+.btn-sub:hover::before{left:100%}
+
+.auth-link{text-align:center;margin-top:1.4rem;font-size:.84rem;color:var(--text-dim)}
+.auth-link a{color:var(--plasma);text-decoration:none;font-weight:600}
+.auth-link a:hover{text-shadow:0 0 15px rgba(0,212,255,.6)}
+.alert-error{background:rgba(255,45,85,.08);border:1px solid rgba(255,45,85,.3);color:#ff6b88;
+  padding:.75rem 1rem;border-radius:8px;font-size:.83rem;margin-bottom:1rem}
+.demo{background:rgba(57,255,110,.05);border:1px solid rgba(57,255,110,.15);border-radius:9px;
+  padding:.85rem 1rem;margin-top:1.4rem;font-size:.75rem;color:var(--text-dim)}
+.demo strong{color:var(--volt);display:block;margin-bottom:.4rem;font-size:.7rem;letter-spacing:1px;text-transform:uppercase}
+.demo code{color:var(--text);background:rgba(0,0,0,.4);padding:.15rem .45rem;border-radius:4px;font-size:.77rem;border:1px solid rgba(57,255,110,.15)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="grid-bg"></div>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="wrap">
+  <div class="logo">
+    <div class="logo-ring"><div class="logo-ring-inner">⚡</div></div>
+    <h1><span class="c1">CHARGE</span><span class="c2">PRO</span></h1>
+    <p>EV Charging Station Management</p>
+  </div>
+  <div class="card">
+    <h2>SIGN IN</h2>
+    {% if error %}<div class="alert-error">⚠ {{ error }}</div>{% endif %}
+    <form method="POST">
+      <div class="fg"><label>Email Address</label><input type="email" name="email" placeholder="you@gmail.com" required></div>
+      <div class="fg"><label>Password</label><input type="password" name="password" placeholder="••••••••" required></div>
+      <button type="submit" class="btn-sub">INITIATE SESSION →</button>
+    </form>
+    <div class="auth-link">No account? <a href="{{ url_for('register') }}">Register here</a></div>
+    <div class="demo">
+      <strong>🔑 Demo Credentials</strong>
+      User: <code>amit@gmail.com</code> / <code>ev123</code> &nbsp;|&nbsp;
+      Admin: <code>admin@ev.com</code> / <code>admin123</code>
+    </div>
+  </div>
+</div>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+let W,H,pts=[];
+function resize(){W=c.width=innerWidth;H=c.height=innerHeight;}
+resize();window.addEventListener('resize',resize);
+for(let i=0;i<90;i++)pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,r:Math.random()*1.5+.5,col:Math.random()>.6?'0,212,255':'57,255,110',a:Math.random()*.7+.1});
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(${p.col},${p.a})`;ctx.fill();});
+  for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<120){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(0,212,255,${(1-d/120)*.12})`;ctx.lineWidth=.5;ctx.stroke();}}
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>

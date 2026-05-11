@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Live Status — EV ChargePro{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header flex justify-between" style="align-items:flex-start">
+    <div><h1>LIVE STATION STATUS</h1><p>Real-time data from charging_stations table</p></div>
+    <div style="display:flex;align-items:center;gap:.6rem;background:rgba(57,255,110,.07);border:1px solid rgba(57,255,110,.2);padding:.5rem 1rem;border-radius:20px">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--volt);display:inline-block;animation:blink 1.2s infinite;box-shadow:0 0 8px rgba(57,255,110,.8)"></span>
+      <span style="font-size:.72rem;color:var(--volt);letter-spacing:1px;text-transform:uppercase;font-weight:600">Live</span>
+      <span id="tmr" style="font-family:'Orbitron',monospace;font-size:.7rem;color:var(--text-ghost)">15s</span>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:2.5rem">
+    <div class="stat-card" style="animation:fadein .4s .1s both">
+      <div class="stat-icon" style="background:rgba(57,255,110,.12)">🟢</div>
+      <div><div class="stat-val" style="color:var(--volt)" id="cnt-a">{{ stations|selectattr('status','eq','Active')|list|length }}</div><div class="stat-lbl">Active</div></div>
+    </div>
+    <div class="stat-card" style="animation:fadein .4s .2s both">
+      <div class="stat-icon" style="background:rgba(0,212,255,.12)">⚡</div>
+      <div><div class="stat-val" style="color:var(--plasma)" id="cnt-s">{{ stations|sum(attribute='available_slots') }}</div><div class="stat-lbl">Open Slots</div></div>
+    </div>
+    <div class="stat-card" style="animation:fadein .4s .3s both">
+      <div class="stat-icon" style="background:rgba(255,215,0,.12)">🔋</div>
+      <div><div class="stat-val" style="color:#ffd700" id="cnt-u">{{ stations|sum(attribute='total_slots') - stations|sum(attribute='available_slots') }}</div><div class="stat-lbl">In Use</div></div>
+    </div>
+    <div class="stat-card" style="animation:fadein .4s .4s both">
+      <div class="stat-icon" style="background:rgba(255,107,26,.12)">🔧</div>
+      <div><div class="stat-val" style="color:var(--ember)" id="cnt-m">{{ stations|selectattr('status','ne','Active')|list|length }}</div><div class="stat-lbl">Maintenance</div></div>
+    </div>
+  </div>
+
+  <div class="section-title">STATION MONITOR</div>
+  <div class="card-grid" id="station-grid">
+    {% for s in stations %}
+    {% set pct = (s.available_slots / s.total_slots * 100)|int %}
+    <div class="station-card" data-id="{{ s.station_id }}" style="animation:fadein .5s {{ loop.index * 0.1 }}s both">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
+        <div>
+          <h3>{{ s.station_name }}</h3>
+          <div class="station-meta" style="margin-top:.3rem">📍 {{ s.location }}</div>
+        </div>
+        <span class="badge {% if s.status=='Active' %}badge-active{% else %}badge-maint{% endif %}">
+          {% if s.status=='Active' %}Active{% else %}⚠ Maint{% endif %}
+        </span>
+      </div>
+      <div class="slot-display">
+        <div class="slot-box"><div class="slot-num av" style="color:{% if pct==0 %}var(--danger){% elif pct<50 %}var(--ember){% else %}var(--volt){% endif %}">{{ s.available_slots }}</div><div class="slot-sub">Free</div></div>
+        <div class="slot-box"><div class="slot-num iu" style="color:var(--plasma)">{{ s.total_slots - s.available_slots }}</div><div class="slot-sub">In Use</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--text-ghost);margin-bottom:.35rem">
+        <span>CAPACITY</span>
+        <span class="pv" style="color:{% if pct==0 %}var(--danger){% elif pct<50 %}var(--ember){% else %}var(--volt){% endif %}">{{ pct }}% free</span>
+      </div>
+      <div class="cap-bar"><div class="cap-fill pb {% if pct==0 %}low{% elif pct<50 %}mid{% else %}full{% endif %}" style="width:{{ pct }}%"></div></div>
+      <!-- Slot squares -->
+      <div style="display:flex;gap:.3rem;margin:.75rem 0;flex-wrap:wrap">
+        {% for i in range(s.total_slots) %}
+        <div style="width:20px;height:20px;border-radius:4px;{% if i < s.available_slots %}background:rgba(57,255,110,.15);border:1px solid rgba(57,255,110,.4);color:var(--volt);{% else %}background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);color:var(--plasma);{% endif %}display:flex;align-items:center;justify-content:center;font-size:.5rem">
+          {% if i < s.available_slots %}○{% else %}●{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div style="font-size:.74rem;color:var(--text-ghost)">⚡ {{ s.charger_type }} · {{ s.power_kw }} kW</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<style>@keyframes fadein{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}</style>
+{% endblock %}
+{% block scripts %}
+<script>
+let cd=15;const tmr=document.getElementById('tmr');
+setInterval(()=>{cd--;if(tmr)tmr.textContent=cd+'s';if(cd<=0){cd=15;refresh();}},1000);
+async function refresh(){
+  try{
+    const r=await fetch('/api/stations'),stations=await r.json();
+    let ts=0,ac=0,mn=0,iu=0;
+    stations.forEach(s=>{
+      ts+=s.available_slots;iu+=s.total_slots-s.available_slots;
+      if(s.status==='Active')ac++;else mn++;
+      const card=document.querySelector(`[data-id="${s.station_id}"]`);
+      if(!card)return;
+      const pct=Math.round(s.available_slots/s.total_slots*100);
+      const av=card.querySelector('.av'),ui=card.querySelector('.iu');
+      const pv=card.querySelector('.pv'),pb=card.querySelector('.pb');
+      if(av)av.textContent=s.available_slots;
+      if(ui)ui.textContent=s.total_slots-s.available_slots;
+      if(pv)pv.textContent=pct+'% free';
+      if(pb){pb.style.width=pct+'%';pb.className='cap-fill pb '+(pct===0?'low':pct<50?'mid':'full');}
+    });
+    const f=id=>{const e=document.getElementById(id);return e||null;};
+    if(f('cnt-a'))f('cnt-a').textContent=ac;
+    if(f('cnt-s'))f('cnt-s').textContent=ts;
+    if(f('cnt-u'))f('cnt-u').textContent=iu;
+    if(f('cnt-m'))f('cnt-m').textContent=mn;
+  }catch(e){}
+}
+</script>
+{% endblock %}
